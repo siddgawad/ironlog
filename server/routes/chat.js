@@ -40,13 +40,38 @@ async function getOrCreateConversation(userId) {
   return convo;
 }
 
+function formatActiveFlags(flags) {
+  return Object.entries(flags?.toObject?.() || flags || {})
+    .filter(([, value]) => {
+      if (value == null) return false;
+      if (typeof value === 'boolean') return value;
+      if (typeof value === 'number') return value > 0;
+      return true;
+    })
+    .map(([key, value]) => {
+      const label = key
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/^./, (char) => char.toUpperCase());
+      if (value instanceof Date) return `${label}: ${value.toISOString()}`;
+      if (typeof value === 'boolean') return label;
+      return `${label}: ${value}`;
+    });
+}
+
 async function buildSystemPrompt(userId, planDayId) {
   const user = await User.findById(userId);
   if (!user) return null;
 
+  const planDayQuery = planDayId
+    ? Plan.findOne({ _id: planDayId, userId })
+    : Plan.findOne({
+        userId,
+        status: { $in: ['planned', 'adapted'] },
+      }).sort({ plannedDate: 1 });
+
   const [state, planDay, lastThreeLogs] = await Promise.all([
     ProgramState.findOne({ userId }),
-    planDayId ? Plan.findOne({ _id: planDayId, userId }) : null,
+    planDayQuery,
     Log.find({ userId }, { chatHistory: 0 }).sort({ date: -1 }).limit(3),
   ]);
 
@@ -65,6 +90,7 @@ async function buildSystemPrompt(userId, planDayId) {
   if (user.currentLifts?.bench) liftsLines.push(`Bench ${user.currentLifts.bench}lb`);
   if (user.currentLifts?.squat) liftsLines.push(`Squat ${user.currentLifts.squat}lb`);
   if (user.currentLifts?.deadlift) liftsLines.push(`Deadlift ${user.currentLifts.deadlift}lb`);
+  if (user.currentLifts?.overheadPress) liftsLines.push(`Overhead press ${user.currentLifts.overheadPress}lb`);
   const currentLiftsStr = liftsLines.length ? liftsLines.join(' | ') : 'not provided';
 
   const equipStr = user.equipment ? user.equipment.replace(/_/g, ' ') : 'unknown';
@@ -73,49 +99,54 @@ async function buildSystemPrompt(userId, planDayId) {
   let programContext = '';
   if (state && planDay) {
     const exerciseLines = planDay.exercises.map((ex) => {
-      if (ex.loadLb > 0) {
-        return `${ex.name}: ${ex.sets}×${ex.reps} @ ${ex.loadLb}lb (RPE ≤${ex.rpeTarget ?? '-'})`;
-      }
-      return `${ex.name}: ${ex.sets}×${ex.reps}`;
+      const details = [`${ex.sets}x${ex.reps}`];
+      if (ex.loadLb > 0) details.push(`@ ${ex.loadLb}lb`);
+      if (ex.rpeTarget != null) details.push(`RPE ${ex.rpeTarget}`);
+      if (ex.restSeconds) details.push(`${ex.restSeconds}s rest`);
+      const notes = ex.notes ? ` - ${ex.notes}` : '';
+      return `${ex.name}: ${details.join(' ')}${notes}`;
     });
 
-    const f = state.flags;
-    const flagLines = [];
-    if (f.medicalStop) flagLines.push('MEDICAL STOP ACTIVE');
-    if (f.benchPaused) flagLines.push('Bench paused — joint pain');
-    if (f.activeRPEWarning) flagLines.push('RPE exceeded cap last bench');
-    if (f.elbowPainFlagged) flagLines.push('Elbow pain flagged');
-    if (f.shoulderPainFlagged) flagLines.push('Shoulder pain flagged');
+    const flagLines = formatActiveFlags(state.flags);
 
     programContext = `
 CURRENT PROGRAM:
-Phase: ${state.phase} (MC ${state.currentMicrocycle}/3, Day ${planDay.dayNumber}/8)
-Today: ${planDay.dayType === 'rest' ? 'Rest Day' : exerciseLines.join('\n  ')}
+Program: ${state.programName || state.phase || 'Active program'}
+Current week: ${state.currentMicrocycle ?? 'unknown'}
+Current day index: ${state.currentDayIndex ?? 'unknown'}
+Scheduled session: ${planDay.dayType || 'Training'} on ${planDay.plannedDate ? new Date(planDay.plannedDate).toDateString() : 'unscheduled'}
+Exercises:
+  ${exerciseLines.length ? exerciseLines.join('\n  ') : 'Rest day or no exercises assigned'}
 Active flags: ${flagLines.length ? flagLines.join(', ') : 'none'}
 `;
   } else if (state) {
     programContext = `
 CURRENT PROGRAM:
-Phase: ${state.phase}, MC ${state.currentMicrocycle}/3 (no session scheduled today)
+Program: ${state.programName || state.phase || 'Active program'}
+Current week: ${state.currentMicrocycle ?? 'unknown'}
+No upcoming planned session found.
 `;
   } else {
     programContext = `
-CURRENT PROGRAM: none yet — user has not started a program. Help them build one based on their goals.
+CURRENT PROGRAM: none yet. Help the user get started from their goals, schedule, and available equipment.
 `;
   }
 
   const sessionSummaries = lastThreeLogs.map((log) => {
     if (log.sessionType === 'missed') {
-      return `${new Date(log.date).toDateString()} — Missed`;
+      return `${new Date(log.date).toDateString()} - Missed`;
     }
-    const b = log.extractedData?.bench;
+    const data = log.extractedData || {};
     const parts = [new Date(log.date).toDateString()];
-    if (b) parts.push(`Bench ${b.loadLb}lb RPE ${b.rpeReported ?? '?'}`);
+    if (data.bench?.loadLb) parts.push(`Bench ${data.bench.loadLb}lb RPE ${data.bench.rpeReported ?? '?'}`);
+    if (data.squat?.loadLb) parts.push(`Squat ${data.squat.loadLb}lb`);
+    if (data.deadlift?.loadLb) parts.push(`Deadlift ${data.deadlift.loadLb}lb RPE ${data.deadlift.rpeReported ?? '?'}`);
+    if (data.accessoriesDone?.length) parts.push(`Accessories: ${data.accessoriesDone.join(', ')}`);
     parts.push(`Felt: ${log.extractedData?.generalFeeling ?? 'N/A'}`);
-    return parts.join(' — ');
+    return parts.join(' - ');
   });
 
-  return `You are IronLog — an elite training coach AI for ${user.name}.
+  return `You are IronLog - an elite training coach AI for ${user.name}.
 
 ATHLETE:
 ${profileStr}
@@ -135,12 +166,12 @@ YOUR ROLE:
 - You remember everything from prior messages in this thread.
 
 WHEN USER WANTS TO LOG A SESSION:
-- Walk through what they did
-- For squats, ALWAYS ask headache grade (0–3 scale below)
-- For bench, confirm load, sets, RPE
+- Walk through what they did.
+- Confirm exercise names, sets, reps, load, RPE when relevant, completion status, and any pain flags.
+- Use the planned session above as the default exercise list, but accept substitutions or partial completion.
 - Once you have enough info, summarize: "Here's what I'm logging:" then a bullet list, then "Sound right?"
 - After they confirm, output the JSON inside <LOG_DATA>{...}</LOG_DATA> tags
-- Then give one brief coaching note (≤2 sentences)
+- Then give one brief coaching note (max 2 sentences)
 
 LOG_DATA SCHEMA:
 {
@@ -155,22 +186,17 @@ LOG_DATA SCHEMA:
   "extraNotes": string
 }
 Use null for fields not mentioned.
+For exercises that do not map cleanly to bench, squat, or deadlift, use accessoriesDone and extraNotes while preserving this schema.
 
 WHEN USER WANTS A PROGRAM BUILT/CHANGED:
 - Ask the minimum clarifying questions needed (days/week, equipment, focus lifts)
 - Reference their stated goal and current 1RMs
-- Don't generate the program yourself — say "I can set that up for you. Confirm and I'll build it." Then wait.
-
-HEADACHE GRADES:
-0 — None
-1 — Mild pressure, gone within 2 min of rest
-2 — Moderate, lingers after the set
-3 — Sudden onset, visual disturbance, neck stiffness, confusion, or >6 hours
+- Don't generate the program yourself - say "I can set that up for you. Confirm and I'll build it." Then wait.
 
 HARD RULES:
 - Never give nutrition advice (weight, calories, food). Decline politely and stay in your lane.
-- Never tell user to push through pain or headaches.
-- If Grade 3 headache reported: respond "Stop training immediately. Seek medical evaluation now." Then output LOG_DATA with headacheGrade 3.
+- Never tell user to push through pain, dizziness, neurological symptoms, or injury signs.
+- If the user reports severe or sudden symptoms, respond "Stop training immediately. Seek medical evaluation now." Then log the session as partial or missed as appropriate.
 - Never modify the program without user confirming.`;
 }
 

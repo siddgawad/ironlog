@@ -20,6 +20,8 @@ import adaptationsRouter from './routes/adaptations.js';
 import medicalClearanceRouter from './routes/medicalClearance.js';
 import painSeverityRouter from './routes/painSeverity.js';
 import conversationsRouter from './routes/conversations.js';
+import exerciseRoutes from './routes/exercises.js';
+import { requireAuth } from './middleware/auth.js';
 
 const app = express();
 
@@ -44,6 +46,7 @@ app.use('/api/adaptations', adaptationsRouter);
 app.use('/api/medical-clearance', medicalClearanceRouter);
 app.use('/api/pain-severity', painSeverityRouter);
 app.use('/api/conversations', conversationsRouter);
+app.use('/api/exercises', requireAuth, exerciseRoutes);
 
 const PORT = process.env.PORT || 3001;
 

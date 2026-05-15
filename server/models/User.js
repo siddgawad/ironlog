@@ -46,6 +46,9 @@ const userSchema = new mongoose.Schema(
     notes: { type: String, default: '' },
     injuries: { type: String, default: '' },
 
+    isPro: { type: Boolean, default: false },
+    proExpiresAt: { type: Date, default: null },
+
     onboardingComplete: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
   },

@@ -23,6 +23,7 @@ import conversationsRouter from './routes/conversations.js';
 import exerciseRoutes from './routes/exercises.js';
 import replanRouter from './routes/replan.js';
 import progressRouter from './routes/progress.js';
+import subscriptionRouter from './routes/subscription.js';
 import { requireAuth } from './middleware/auth.js';
 
 const app = express();
@@ -51,6 +52,7 @@ app.use('/api/conversations', conversationsRouter);
 app.use('/api/exercises', requireAuth, exerciseRoutes);
 app.use('/api/replan', replanRouter);
 app.use('/api/progress', progressRouter);
+app.use('/api/subscription', subscriptionRouter);
 
 const PORT = process.env.PORT || 3001;
 

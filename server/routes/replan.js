@@ -5,6 +5,7 @@ import Plan from '../models/Plan.js';
 import ProgramState from '../models/ProgramState.js';
 import User from '../models/User.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePro } from '../middleware/proGate.js';
 
 const router = Router();
 const DIFF_TTL_MS = 10 * 60 * 1000;
@@ -192,7 +193,7 @@ function calculateDayNumber(programState, date) {
   return Math.max(diffDays + 1, 1);
 }
 
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, requirePro, async (req, res) => {
   try {
     cleanupExpiredTokens();
 

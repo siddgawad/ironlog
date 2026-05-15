@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import Log from '../models/Log.js';
 import { requireAuth } from '../middleware/auth.js';
+import { requirePro } from '../middleware/proGate.js';
 
 const router = Router();
 
@@ -31,7 +32,7 @@ function bestReps(liftData) {
   return Number.isFinite(reps) ? reps : 0;
 }
 
-router.get('/', requireAuth, async (req, res) => {
+router.get('/', requireAuth, requirePro, async (req, res) => {
   try {
     const lift = String(req.query.lift || '').trim();
     if (!lift) return res.status(400).json({ error: 'LIFT_REQUIRED' });

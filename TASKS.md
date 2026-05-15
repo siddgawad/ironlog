@@ -74,12 +74,14 @@ GET  /ping                   → { ok, ts }
 ### New endpoints (added in this build — backend-agent defines shape here when built)
 
 ```
-GET  /api/exercises          { muscle?, equipment?, limit? } → Exercise[]
-POST /api/setup              CHANGED — see P1-002 below
-GET  /api/progress           { lift, from?, to? } → { points: [{date, e1rm, loadLb, reps}] }
-POST /api/replan             { missedPlanIds, reason } → { diff: { removed[], added[] } }
-POST /api/replan/confirm     { diffToken } → { success }
-GET  /api/subscription/status → { isPro, expiresAt }
+GET  /api/exercises          { muscle?, equipment?, limit? } -> Exercise[]
+GET  /api/exercises/search   { q, limit? } -> Exercise[]
+POST /api/setup              { startDate? | programStartDate? } -> { success, programName } | { alreadyInitialized }
+GET  /api/state              CHANGED - includes { initialized, programName, missedSessionCount }
+GET  /api/progress           PRO - { lift, from?, to? } -> { lift, points: [{date, e1rm, loadLb, reps}] }
+POST /api/replan             PRO - { missedPlanIds?, reason } -> { diffToken, diff: { summary, removed[], rescheduled[], added[] } }
+POST /api/replan/confirm     { diffToken } -> { success }
+GET  /api/subscription/status -> { isPro, expiresAt }
 ```
 
 ---
@@ -585,16 +587,16 @@ Update status here as work progresses.
 
 | ID | Title | Owner | Status |
 |---|---|---|---|
-| P1-001 | Import exercise database | backend-agent | `ready` |
-| P1-002 | AI-based program generator | backend-agent | `ready` |
-| P1-003 | Generalize AI system prompt | backend-agent | `ready` |
+| P1-001 | Import exercise database | backend-agent | `done` |
+| P1-002 | AI-based program generator | backend-agent | `done` |
+| P1-003 | Generalize AI system prompt | backend-agent | `done` |
 | P1-004 | Fix setup.tsx UI | frontend-agent | `ready` |
-| P2-001 | Missed session detection | backend-agent | `blocked by P1-002` |
-| P2-002 | Replan endpoint | backend-agent | `blocked by P2-001` |
+| P2-001 | Missed session detection | backend-agent | `done` |
+| P2-002 | Replan endpoint | backend-agent | `done` |
 | P2-003 | Fix My Week UI | frontend-agent | `blocked by P2-002` |
-| P3-001 | e1RM progress endpoint | backend-agent | `ready` |
+| P3-001 | e1RM progress endpoint | backend-agent | `done` |
 | P3-002 | Progress charts UI | frontend-agent | `blocked by P3-001` |
-| P4-001 | Pro gate middleware | backend-agent | `ready` |
+| P4-001 | Pro gate middleware | backend-agent | `done` |
 | P4-002 | RevenueCat integration | frontend-agent + human | `blocked by human: RevenueCat account` |
 | P5-001 | Rest timer | frontend-agent | `ready` |
 | P5-002 | Offline tolerance | frontend-agent | `ready` |
@@ -610,3 +612,5 @@ Update status here as work progresses.
 - [ ] **[backend → frontend]** When P1-002 is done, confirm the exact shape of `GET /api/state` response (specifically `programName` and `missedSessionCount` fields) so frontend-agent can update `store/appStore.ts` and `app/(tabs)/today.tsx`.
 - [ ] **[backend → frontend]** When P2-002 is done, confirm `diffToken` TTL so frontend knows how long the diff card remains valid.
 - [ ] **[human → agents]** Provide RevenueCat public SDK key to unblock P4-002.
+
+Backend summary: P1-001 through P4-001 backend work is implemented and committed: exercises are imported/searchable, setup now calls Groq for a profile-based 4-week program, chat prompt context is generalized, overdue planned sessions become missed on `GET /api/state`, replan diff/confirm endpoints exist with 10-minute in-memory tokens, e1RM progress returns sorted points, and Pro gating plus subscription status are wired. Manual endpoint checks passed for exercise search, missed-session detection, e1RM calculation, and Pro 403/unlock behavior; AI setup/replan calls reached Groq but failed because the current `server/.env` Groq key returns `invalid_api_key`, so a valid `GROQ_API_KEY` is needed for full acceptance. Frontend-agent should expect `GET /api/state` to include `programName` and `missedSessionCount`, handle `PRO_REQUIRED` on `POST /api/replan` and `GET /api/progress`, and treat `diffToken` as expiring after 10 minutes.

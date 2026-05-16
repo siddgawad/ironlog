@@ -42,6 +42,17 @@ const userSchema = new mongoose.Schema(
       overheadPress: Number,
     },
 
+    // Nutrition-specific fields (Ashwini's client intake)
+    goal: {
+      type: String,
+      enum: ['diabetes', 'pcos', 'weight_loss', 'weight_gain', 'elderly_care', 'cardiac', 'general_wellness', 'npd', null],
+      default: null,
+    },
+    gender: { type: String, enum: ['male', 'female', 'other', null], default: null },
+    medicalConditions: { type: String, default: '' },
+    medications: { type: String, default: '' },
+    consultMode: { type: String, enum: ['online', 'in_person', 'either', null], default: null },
+
     // Free-form context the AI uses
     notes: { type: String, default: '' },
     injuries: { type: String, default: '' },

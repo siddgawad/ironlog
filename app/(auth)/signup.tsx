@@ -37,8 +37,11 @@ export default function Signup() {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.brand}>IRONLOG</Text>
-          <Text style={styles.subtitle}>Build your training profile</Text>
+          <View style={styles.avatarRow}>
+            <View style={styles.avatarCircle}><Text style={styles.avatarText}>AG</Text></View>
+          </View>
+          <Text style={styles.brand}>Create Your Account</Text>
+          <Text style={styles.subtitle}>Start your nutrition journey with Ashwini</Text>
 
           <View style={styles.field}>
             <Text style={styles.label}>Name</Text>
@@ -46,7 +49,7 @@ export default function Signup() {
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="What should we call you?"
+              placeholder="Your full name"
               placeholderTextColor="#52525b"
               autoComplete="name"
             />
@@ -112,24 +115,30 @@ export default function Signup() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#09090b' },
+  safe: { flex: 1, backgroundColor: '#07080A' },
   container: { flexGrow: 1, padding: 24, justifyContent: 'center' },
-  brand: { fontSize: 36, fontWeight: '900', color: '#f97316', letterSpacing: 5, marginBottom: 4 },
-  subtitle: { fontSize: 15, color: '#a1a1aa', marginBottom: 32 },
-  field: { marginBottom: 16 },
-  label: { fontSize: 11, color: '#71717a', fontWeight: '600', letterSpacing: 1.2, marginBottom: 6 },
-  input: {
-    backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a',
-    borderRadius: 12, padding: 14, color: '#f4f4f5', fontSize: 15,
+  avatarRow: { alignItems: 'center', marginBottom: 16 },
+  avatarCircle: {
+    width: 64, height: 64, borderRadius: 32, backgroundColor: '#FF6A1A',
+    alignItems: 'center', justifyContent: 'center',
   },
-  error: { color: '#f87171', fontSize: 13, marginBottom: 12, textAlign: 'center' },
+  avatarText: { color: '#fff', fontWeight: '900', fontSize: 18, letterSpacing: 2 },
+  brand: { fontSize: 22, fontWeight: '900', color: '#F8FAFC', textAlign: 'center', marginBottom: 4 },
+  subtitle: { fontSize: 13, color: '#69717F', marginBottom: 32, textAlign: 'center' },
+  field: { marginBottom: 16 },
+  label: { fontSize: 11, color: '#69717F', fontWeight: '600', letterSpacing: 1.2, marginBottom: 6 },
+  input: {
+    backgroundColor: '#111318', borderWidth: 1, borderColor: '#252A33',
+    borderRadius: 12, padding: 14, color: '#F8FAFC', fontSize: 15,
+  },
+  error: { color: '#EF4444', fontSize: 13, marginBottom: 12, textAlign: 'center' },
   button: {
-    backgroundColor: '#f97316', borderRadius: 12, padding: 16, alignItems: 'center',
+    backgroundColor: '#FF6A1A', borderRadius: 12, padding: 16, alignItems: 'center',
     marginTop: 8,
   },
   buttonDisabled: { opacity: 0.4 },
   buttonText: { color: '#fff', fontWeight: '800', fontSize: 16 },
   linkRow: { alignItems: 'center', marginTop: 20 },
-  linkText: { color: '#71717a', fontSize: 14 },
-  linkTextBold: { color: '#f97316', fontWeight: '700' },
+  linkText: { color: '#69717F', fontSize: 14 },
+  linkTextBold: { color: '#FF6A1A', fontWeight: '700' },
 });

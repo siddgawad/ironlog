@@ -24,6 +24,8 @@ import exerciseRoutes from './routes/exercises.js';
 import replanRouter from './routes/replan.js';
 import progressRouter from './routes/progress.js';
 import subscriptionRouter from './routes/subscription.js';
+import checkInsRouter from './routes/checkins.js';
+import bookingRouter from './routes/booking.js';
 import { requireAuth } from './middleware/auth.js';
 import { configureSecurity, apiLimiter, authLimiter, aiLimiter } from './middleware/security.js';
 
@@ -53,8 +55,10 @@ app.use('/api/pain-severity', painSeverityRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/exercises', requireAuth, exerciseRoutes);
 app.use('/api/replan', aiLimiter, replanRouter);
+app.use('/api/progress/checkins', checkInsRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/subscription', subscriptionRouter);
+app.use('/api/booking', bookingRouter);
 
 app.use((err, _req, res, _next) => {
   console.error('Unhandled server error:', err);

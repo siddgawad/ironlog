@@ -69,9 +69,11 @@ router.get('/me', requireAuth, async (req, res) => {
 router.patch('/me', requireAuth, async (req, res) => {
   try {
     const allowed = [
-      'name', 'age', 'sex', 'weightKg', 'heightCm',
+      'name', 'age', 'sex', 'gender', 'weightKg', 'heightCm',
       'primaryGoal', 'experienceLevel', 'daysPerWeek', 'equipment',
       'currentLifts', 'targetLifts', 'notes', 'injuries',
+      // Nutrition (Ashwini's client intake)
+      'goal', 'medicalConditions', 'medications', 'consultMode',
     ];
     const update = {};
     for (const k of allowed) if (k in req.body) update[k] = req.body[k];

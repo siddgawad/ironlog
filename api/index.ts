@@ -6,8 +6,9 @@ const BASE_URL =
   (Constants.expoConfig?.extra?.apiBaseUrl as string) ?? 'http://localhost:3001';
 
 const TOKEN_KEY = 'ironlog_auth_token';
+const OFFLINE_QUEUE_KEY = 'ironlog_offline_queue';
 
-const api = axios.create({ baseURL: `${BASE_URL}/api`, timeout: 15000 });
+const api = axios.create({ baseURL: `${BASE_URL}/api`, timeout: 20000 });
 
 let cachedToken: string | null = null;
 
@@ -30,13 +31,67 @@ export async function clearToken(): Promise<void> {
 
 api.interceptors.request.use(async (config) => {
   const token = await loadToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 export default api;
+
+// ── Typed API wrappers ────────────────────────────────────────────────────────
+
+export type ProgressPoint = { date: string; e1rm: number; loadLb: number; reps: number };
+export type ProgressData = { lift: string; points: ProgressPoint[] };
+
+export async function getProgress(
+  lift: string,
+  from?: string,
+  to?: string
+): Promise<ProgressData> {
+  const params: Record<string, string> = { lift };
+  if (from) params.from = from;
+  if (to) params.to = to;
+  const res = await api.get('/progress', { params });
+  return res.data;
+}
+
+export async function getSubscriptionStatus(): Promise<{ isPro: boolean; expiresAt: string | null }> {
+  const res = await api.get('/subscription/status');
+  return res.data;
+}
+
+export async function requestReplan(
+  reason: string,
+  missedPlanIds?: string[]
+): Promise<{ diffToken: string; diff: any }> {
+  const res = await api.post('/replan', { reason, missedPlanIds: missedPlanIds ?? [] });
+  return res.data;
+}
+
+export async function confirmReplan(diffToken: string): Promise<void> {
+  await api.post('/replan/confirm', { diffToken });
+}
+
+// ── Offline chat queue ────────────────────────────────────────────────────────
+
+type QueuedMessage = { text: string; planDayId: string | null; timestamp: string };
+
+export async function queueOfflineMessage(text: string, planDayId: string | null): Promise<void> {
+  const raw = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+  const queue: QueuedMessage[] = raw ? JSON.parse(raw) : [];
+  queue.push({ text, planDayId, timestamp: new Date().toISOString() });
+  await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+}
+
+export async function getOfflineQueue(): Promise<QueuedMessage[]> {
+  const raw = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function clearOfflineQueue(): Promise<void> {
+  await AsyncStorage.removeItem(OFFLINE_QUEUE_KEY);
+}
+
+// ── Chat stream ───────────────────────────────────────────────────────────────
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -59,6 +114,7 @@ export async function streamChat(
     });
 
     if (response.status === 401) { onError('UNAUTHENTICATED'); return; }
+    if (response.status === 429) { onError('RATE_LIMIT'); return; }
     if (!response.ok) { onError('AI_UNAVAILABLE'); return; }
 
     const reader = response.body?.getReader();
@@ -70,11 +126,9 @@ export async function streamChat(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
       buffer = lines.pop() ?? '';
-
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
         const data = line.slice(6).trim();
@@ -88,6 +142,6 @@ export async function streamChat(
     }
     onDone();
   } catch {
-    onError('AI_UNAVAILABLE');
+    onError('NETWORK_ERROR');
   }
 }

@@ -8,7 +8,7 @@ import { useAuthStore } from '../store/authStore';
 import { useKeepAlive } from '../hooks/useKeepAlive';
 
 export default function RootLayout() {
-  const fetchProgramState = useAppStore((s) => s.fetchProgramState);
+  const fetchClientData = useAppStore((s) => s.fetchClientData);
   const { user, loading, hydrate } = useAuthStore();
   const router = useRouter();
   const segments = useSegments();
@@ -33,7 +33,7 @@ export default function RootLayout() {
   }, [user, loading, segments]);
 
   useEffect(() => {
-    if (user?.onboardingComplete) fetchProgramState();
+    if (user?.onboardingComplete) fetchClientData();
   }, [user]);
 
   if (loading) {

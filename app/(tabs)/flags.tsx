@@ -1,147 +1,179 @@
-import { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { useCallback, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator, RefreshControl, TouchableOpacity, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import api from '../../api';
+import { useFocusEffect } from 'expo-router';
 import { useAppStore } from '../../store/appStore';
 
-type Adaptation = {
-  _id: string;
-  rule: string;
-  trigger: string;
-  action: string;
-  timestamp: string;
+const C = {
+  bg: '#07080A', surface: '#111318', elevated: '#171A21', border: '#252A33',
+  orange: '#FF6A1A', green: '#22C55E', warning: '#F59E0B', text: '#F8FAFC',
+  textSec: '#A8B0BD', textMuted: '#69717F',
 };
 
-const RULE_META: Record<string, { color: string; label: string }> = {
-  RULE_1_MISSED: { color: '#60a5fa', label: 'Missed Session' },
-  RULE_2_FAILED_BENCH: { color: '#fb923c', label: 'Bench Failure' },
-  RULE_2_MC_BOUNDARY: { color: '#fb923c', label: 'MC Boundary — No Load Advance' },
-  RULE_3_HEADACHE_GRADE1: { color: '#fb923c', label: 'Grade 1 Headache' },
-  RULE_3_HEADACHE_GRADE1_REPEATED: { color: '#fb923c', label: 'Grade 1 Headache ×2' },
-  RULE_4_HEADACHE_GRADE2: { color: '#f87171', label: 'Grade 2 Headache' },
-  RULE_5_HEADACHE_GRADE3: { color: '#f87171', label: 'Grade 3 — Medical Stop' },
-  RULE_6_RPE_OVER_CAP: { color: '#fb923c', label: 'RPE Cap Exceeded' },
-  RULE_7_PAIN_FLAG: { color: '#fb923c', label: 'Pain Flag' },
-};
+const WHATSAPP_NUMBER = '+919820xxxxxx';
 
-export default function Flags() {
-  const { programState, fetchProgramState } = useAppStore();
-  const [adaptations, setAdaptations] = useState<Adaptation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [resumeChecked, setResumeChecked] = useState(false);
-  const [resuming, setResuming] = useState(false);
+function openWhatsApp(msg = '') {
+  const url = `https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
+  Linking.openURL(url).catch(() => {});
+}
 
-  const medicalStop = programState?.flags?.medicalStop;
+export default function MyPlan() {
+  const { todayDiet, fetchClientData } = useAppStore();
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    api.get('/adaptations').then((r) => { setAdaptations(r.data); setLoading(false); });
-  }, []);
+  useFocusEffect(useCallback(() => { fetchClientData(); }, []));
 
-  const handleResume = async () => {
-    if (!resumeChecked) return;
-    setResuming(true);
-    try {
-      await api.post('/medical-clearance');
-      await fetchProgramState();
-    } catch {}
-    setResuming(false);
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchClientData();
+    setRefreshing(false);
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Adaptation Log</Text>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.orange} />}
+      >
+        <Text style={styles.title}>My Plan</Text>
 
-        {medicalStop && (
-          <View style={styles.medicalCard}>
-            <Text style={styles.medicalTitle}>TRAINING HALTED</Text>
-            <Text style={styles.medicalBody}>
-              Severe headache reported. Do not resume until you have received medical evaluation.
-              Sudden explosive onset, visual disturbance, neck stiffness, or confusion require
-              immediate evaluation.
+        {todayDiet ? (
+          <>
+            <Text style={styles.sectionLabel}>TODAY'S MEALS</Text>
+            {todayDiet.meals.length === 0 ? (
+              <Text style={styles.empty}>No meals scheduled for today.</Text>
+            ) : (
+              todayDiet.meals.map((meal, i) => (
+                <View key={i} style={styles.mealCard}>
+                  <View style={styles.mealTime}>
+                    <Text style={styles.mealTimeText}>{meal.time}</Text>
+                  </View>
+                  <View style={styles.mealBody}>
+                    <Text style={styles.mealDesc}>{meal.description}</Text>
+                    {meal.notes ? <Text style={styles.mealNotes}>{meal.notes}</Text> : null}
+                  </View>
+                </View>
+              ))
+            )}
+
+            {todayDiet.waterTargetMl > 0 && (
+              <View style={styles.waterCard}>
+                <Text style={styles.waterIcon}>💧</Text>
+                <View>
+                  <Text style={styles.waterTitle}>Water Target</Text>
+                  <Text style={styles.waterValue}>{(todayDiet.waterTargetMl / 1000).toFixed(1)} litres today</Text>
+                </View>
+              </View>
+            )}
+
+            {todayDiet.notes ? (
+              <>
+                <Text style={styles.sectionLabel}>ASHWINI'S NOTES</Text>
+                <View style={styles.notesCard}>
+                  <Text style={styles.notesText}>{todayDiet.notes}</Text>
+                </View>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.noplanCard}>
+            <Text style={styles.noplanTitle}>Your plan isn't set up yet</Text>
+            <Text style={styles.noplanBody}>
+              Book a consultation with Ashwini and she'll create a personalised
+              daily diet plan that appears here.
             </Text>
             <TouchableOpacity
-              onPress={() => setResumeChecked((v) => !v)}
-              style={styles.checkRow}
-              activeOpacity={0.7}
+              style={styles.bookBtn}
+              onPress={() => openWhatsApp("Hi Ashwini! I'd like to book a consultation to get started with my diet plan.")}
+              activeOpacity={0.85}
             >
-              <View style={[styles.checkbox, resumeChecked && styles.checkboxChecked]}>
-                {resumeChecked && <Text style={styles.checkmark}>✓</Text>}
-              </View>
-              <Text style={styles.checkLabel}>
-                I have received medical clearance and am cleared to train
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.resumeBtn, (!resumeChecked || resuming) && styles.resumeBtnDisabled]}
-              onPress={handleResume}
-              disabled={!resumeChecked || resuming}
-            >
-              {resuming
-                ? <ActivityIndicator color="#fff" size="small" />
-                : <Text style={styles.resumeBtnText}>Resume Training</Text>}
+              <Text style={styles.bookBtnText}>💬  Book Consultation</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {loading ? (
-          <ActivityIndicator color="#f97316" style={{ marginTop: 40 }} />
-        ) : adaptations.length === 0 ? (
-          <Text style={styles.empty}>No adaptations triggered yet.</Text>
-        ) : (
-          adaptations.map((a) => {
-            const meta = RULE_META[a.rule] ?? { color: '#60a5fa', label: a.rule };
-            const ts = new Date(a.timestamp).toLocaleString('en-CA', {
-              month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-            });
-            return (
-              <View key={a._id} style={[styles.card, { borderLeftColor: meta.color }]}>
-                <View style={styles.cardHeader}>
-                  <Text style={[styles.cardRule, { color: meta.color }]}>{meta.label}</Text>
-                  <Text style={styles.cardTs}>{ts}</Text>
-                </View>
-                <Text style={styles.cardTrigger}>{a.trigger}</Text>
-                <Text style={styles.cardAction}>{a.action}</Text>
-              </View>
-            );
-          })
-        )}
+        {/* Resources */}
+        <Text style={styles.sectionLabel}>QUICK TIPS</Text>
+        {[
+          { icon: '🥗', title: 'Eat slowly', body: 'Put your fork down between bites. It takes 20 min for satiety signals to reach your brain.' },
+          { icon: '🕐', title: 'Meal timing matters', body: 'Try to eat meals at consistent times daily to regulate blood sugar and hormones.' },
+          { icon: '🚶', title: 'Post-meal walk', body: '10–15 min walk after meals significantly improves insulin sensitivity.' },
+          { icon: '🚫', title: 'Avoid late-night eating', body: 'Stop eating 2–3 hours before bed. The liver repairs overnight and needs a break.' },
+        ].map((tip) => (
+          <View key={tip.title} style={styles.tipCard}>
+            <Text style={styles.tipIcon}>{tip.icon}</Text>
+            <View style={styles.tipBody}>
+              <Text style={styles.tipTitle}>{tip.title}</Text>
+              <Text style={styles.tipText}>{tip.body}</Text>
+            </View>
+          </View>
+        ))}
+
+        <View style={{ height: 32 }} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#09090b' },
+  safe: { flex: 1, backgroundColor: C.bg },
   container: { padding: 20, paddingBottom: 40 },
-  title: { fontSize: 22, fontWeight: '800', color: '#f4f4f5', marginBottom: 20 },
-  medicalCard: {
-    backgroundColor: '#1c0a0a', borderWidth: 1, borderColor: '#991b1b',
-    borderRadius: 14, padding: 16, marginBottom: 20,
+  title: { fontSize: 22, fontWeight: '800', color: C.text, marginBottom: 20 },
+  sectionLabel: {
+    fontSize: 10, fontWeight: '700', color: C.textMuted,
+    letterSpacing: 1.5, marginBottom: 10, marginTop: 4,
   },
-  medicalTitle: { color: '#fca5a5', fontWeight: '800', fontSize: 14, marginBottom: 8 },
-  medicalBody: { color: '#fca5a5', fontSize: 13, lineHeight: 20, marginBottom: 16 },
-  checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 14 },
-  checkbox: {
-    width: 22, height: 22, borderRadius: 4, borderWidth: 2, borderColor: '#f87171',
-    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  empty: { color: C.textMuted, fontSize: 14, marginBottom: 16 },
+
+  mealCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, padding: 14, flexDirection: 'row',
+    alignItems: 'flex-start', gap: 14, marginBottom: 10,
   },
-  checkboxChecked: { backgroundColor: '#f97316', borderColor: '#f97316' },
-  checkmark: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  checkLabel: { flex: 1, fontSize: 13, color: '#fca5a5', lineHeight: 20 },
-  resumeBtn: {
-    backgroundColor: '#f97316', borderRadius: 10, padding: 14, alignItems: 'center',
+  mealTime: {
+    backgroundColor: C.elevated, borderRadius: 8,
+    paddingHorizontal: 10, paddingVertical: 6, minWidth: 60, alignItems: 'center',
   },
-  resumeBtnDisabled: { opacity: 0.4 },
-  resumeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  empty: { color: '#52525b', fontSize: 14, textAlign: 'center', paddingTop: 40 },
-  card: {
-    backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a',
-    borderLeftWidth: 3, borderRadius: 12, padding: 14, marginBottom: 10,
+  mealTimeText: { fontSize: 12, fontWeight: '700', color: C.orange },
+  mealBody: { flex: 1 },
+  mealDesc: { fontSize: 14, color: C.text, lineHeight: 20 },
+  mealNotes: { fontSize: 12, color: C.textMuted, marginTop: 4, lineHeight: 18 },
+
+  waterCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, padding: 14, flexDirection: 'row',
+    alignItems: 'center', gap: 14, marginBottom: 16,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  cardRule: { fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
-  cardTs: { fontSize: 11, color: '#52525b' },
-  cardTrigger: { fontSize: 13, color: '#a1a1aa', marginBottom: 2 },
-  cardAction: { fontSize: 12, color: '#71717a' },
+  waterIcon: { fontSize: 24 },
+  waterTitle: { fontSize: 12, color: C.textMuted, marginBottom: 2 },
+  waterValue: { fontSize: 16, fontWeight: '800', color: '#60A5FA' },
+
+  notesCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, padding: 16, marginBottom: 16,
+  },
+  notesText: { fontSize: 14, color: C.textSec, lineHeight: 22 },
+
+  noplanCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 24,
+  },
+  noplanTitle: { fontSize: 17, fontWeight: '800', color: C.text, marginBottom: 8 },
+  noplanBody: { fontSize: 13, color: C.textMuted, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  bookBtn: {
+    backgroundColor: C.orange, borderRadius: 12,
+    paddingHorizontal: 24, paddingVertical: 14,
+  },
+  bookBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+
+  tipCard: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, padding: 14, flexDirection: 'row',
+    alignItems: 'flex-start', gap: 12, marginBottom: 10,
+  },
+  tipIcon: { fontSize: 20, width: 28, textAlign: 'center' },
+  tipBody: { flex: 1 },
+  tipTitle: { fontSize: 13, fontWeight: '700', color: C.text, marginBottom: 3 },
+  tipText: { fontSize: 12, color: C.textMuted, lineHeight: 18 },
 });

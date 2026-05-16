@@ -1,10 +1,13 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
 const TOKEN_TTL = '30d';
 
 export function signToken(userId) {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is required');
+  }
   return jwt.sign({ uid: userId }, JWT_SECRET, { expiresIn: TOKEN_TTL });
 }
 
@@ -16,6 +19,7 @@ export async function requireAuth(req, res, next) {
   const token = header.slice(7);
   let payload;
   try {
+    if (!JWT_SECRET) throw new Error('JWT_SECRET is required');
     payload = jwt.verify(token, JWT_SECRET);
   } catch {
     return res.status(401).json({ error: 'INVALID_TOKEN' });

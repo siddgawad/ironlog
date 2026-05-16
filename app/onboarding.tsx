@@ -8,171 +8,161 @@ import { useRouter } from 'expo-router';
 import api from '../api';
 import { useAuthStore } from '../store/authStore';
 
+const C = {
+  bg: '#07080A', surface: '#111318', border: '#252A33',
+  orange: '#FF6A1A', text: '#F8FAFC', textSec: '#A8B0BD', textMuted: '#69717F',
+};
+
 const GOALS = [
-  { key: 'strength', label: 'Get stronger', sub: 'Lift heavier on big compounds' },
-  { key: 'hypertrophy', label: 'Build muscle', sub: 'Body composition focus' },
-  { key: 'powerlifting', label: 'Powerlifting', sub: 'Compete or train for max bench/squat/deadlift' },
-  { key: 'weight_loss', label: 'Lose weight', sub: 'Cut fat while keeping strength' },
-  { key: 'general_fitness', label: 'General fitness', sub: 'Look good, feel good, stay healthy' },
-  { key: 'athletic_performance', label: 'Athletic performance', sub: 'Sport-specific conditioning' },
+  { key: 'diabetes', label: 'Diabetes & Metabolic Health', sub: 'Type 2 diabetes, pre-diabetes, fatty liver' },
+  { key: 'pcos', label: 'PCOS & Hormonal Balance', sub: 'Hormonal regulation, fertility, weight' },
+  { key: 'weight_loss', label: 'Weight Loss', sub: 'Medical-grade, sustainable, Indian food' },
+  { key: 'weight_gain', label: 'Weight Gain', sub: 'Healthy mass gain, underweight recovery' },
+  { key: 'elderly_care', label: 'Elderly & Family Care', sub: 'Nutrition protocols for ageing parents' },
+  { key: 'general_wellness', label: 'General Wellness', sub: 'Balanced nutrition, energy, immunity' },
 ];
 
-const EXP_LEVELS = [
-  { key: 'beginner', label: 'Beginner', sub: 'Less than a year lifting' },
-  { key: 'intermediate', label: 'Intermediate', sub: '1–3 years consistent' },
-  { key: 'advanced', label: 'Advanced', sub: '3+ years, know your numbers' },
+const GENDERS = [
+  { key: 'female', label: 'Female' },
+  { key: 'male', label: 'Male' },
+  { key: 'other', label: 'Other / Prefer not to say' },
 ];
 
-const EQUIPMENT = [
-  { key: 'full_gym', label: 'Full gym', sub: 'Barbell, racks, machines' },
-  { key: 'home_gym', label: 'Home gym', sub: 'Barbell + plates at home' },
-  { key: 'dumbbells_only', label: 'Dumbbells only', sub: 'No barbell access' },
-  { key: 'bodyweight', label: 'Bodyweight only', sub: 'No equipment' },
+const CONSULT_MODES = [
+  { key: 'online', label: 'Online', sub: 'Video / WhatsApp — available worldwide' },
+  { key: 'in_person', label: 'In Person', sub: 'Mumbai clinic visit' },
+  { key: 'either', label: 'Either works for me' , sub: 'Flexible — Ashwini will advise' },
 ];
+
+const TOTAL_STEPS = 5;
 
 export default function Onboarding() {
   const router = useRouter();
   const { setOnboardingComplete } = useAuthStore();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const [goal, setGoal] = useState<string | null>(null);
-  const [exp, setExp] = useState<string | null>(null);
-  const [equipment, setEquipment] = useState<string | null>(null);
-  const [daysPerWeek, setDaysPerWeek] = useState<number | null>(null);
   const [age, setAge] = useState('');
-  const [weightKg, setWeightKg] = useState('');
-  const [bench, setBench] = useState('');
-  const [squat, setSquat] = useState('');
-  const [deadlift, setDeadlift] = useState('');
+  const [gender, setGender] = useState<string | null>(null);
+  const [conditions, setConditions] = useState('');
+  const [medications, setMedications] = useState('');
+  const [consultMode, setConsultMode] = useState<string | null>(null);
 
-  const totalSteps = 6;
-
-  const next = () => setStep((s) => Math.min(s + 1, totalSteps - 1));
+  const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
-
-  const finish = async () => {
-    setSaving(true);
-    try {
-      await api.patch('/auth/me', {
-        primaryGoal: goal,
-        experienceLevel: exp,
-        equipment,
-        daysPerWeek,
-        age: age ? Number(age) : null,
-        weightKg: weightKg ? Number(weightKg) : null,
-        currentLifts: {
-          bench: bench ? Number(bench) : undefined,
-          squat: squat ? Number(squat) : undefined,
-          deadlift: deadlift ? Number(deadlift) : undefined,
-        },
-      });
-      await setOnboardingComplete();
-      router.replace('/(tabs)');
-    } catch {
-      setSaving(false);
-    }
-  };
 
   const canProceed = () => {
     switch (step) {
       case 0: return !!goal;
-      case 1: return !!exp;
-      case 2: return !!equipment;
-      case 3: return !!daysPerWeek;
-      case 4: return true;
-      case 5: return true;
+      case 1: return true;
+      case 2: return true;
+      case 3: return true;
+      case 4: return !!consultMode;
       default: return false;
+    }
+  };
+
+  const finish = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await api.patch('/auth/me', {
+        goal,
+        age: age ? Number(age) : null,
+        gender: gender ?? null,
+        medicalConditions: conditions.trim() || null,
+        medications: medications.trim() || null,
+        consultMode,
+      });
+      await setOnboardingComplete();
+      router.replace('/(tabs)');
+    } catch {
+      setError('Could not save your profile. Check your connection.');
+      setSaving(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {/* Progress bar */}
         <View style={styles.progress}>
-          {Array.from({ length: totalSteps }).map((_, i) => (
-            <View key={i} style={[styles.progressDot, i <= step && styles.progressDotActive]} />
+          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
+            <View key={i} style={[styles.progressSeg, i <= step && styles.progressSegActive]} />
           ))}
         </View>
 
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+
           {step === 0 && (
-            <Section title="What's your main goal?">
+            <Section title="What's your main health goal?" subtitle="Ashwini will build your plan around this">
               {GOALS.map((g) => (
-                <Choice
-                  key={g.key}
-                  label={g.label}
-                  sub={g.sub}
-                  selected={goal === g.key}
-                  onPress={() => setGoal(g.key)}
-                />
+                <Choice key={g.key} label={g.label} sub={g.sub} selected={goal === g.key} onPress={() => setGoal(g.key)} />
               ))}
             </Section>
           )}
 
           {step === 1 && (
-            <Section title="How experienced are you?">
-              {EXP_LEVELS.map((e) => (
-                <Choice
-                  key={e.key}
-                  label={e.label}
-                  sub={e.sub}
-                  selected={exp === e.key}
-                  onPress={() => setExp(e.key)}
-                />
-              ))}
-            </Section>
-          )}
-
-          {step === 2 && (
-            <Section title="What equipment do you have?">
-              {EQUIPMENT.map((e) => (
-                <Choice
-                  key={e.key}
-                  label={e.label}
-                  sub={e.sub}
-                  selected={equipment === e.key}
-                  onPress={() => setEquipment(e.key)}
-                />
-              ))}
-            </Section>
-          )}
-
-          {step === 3 && (
-            <Section title="How many days per week can you train?">
-              <View style={styles.dayGrid}>
-                {[2, 3, 4, 5, 6].map((d) => (
+            <Section title="A bit about you" subtitle="Helps personalise your nutrition protocol">
+              <NumField label="Age" value={age} onChange={setAge} suffix="years" />
+              <Text style={styles.fieldLabel}>Gender</Text>
+              <View style={styles.pillRow}>
+                {GENDERS.map((g) => (
                   <TouchableOpacity
-                    key={d}
-                    style={[styles.dayBtn, daysPerWeek === d && styles.dayBtnActive]}
-                    onPress={() => setDaysPerWeek(d)}
+                    key={g.key}
+                    style={[styles.pill, gender === g.key && styles.pillActive]}
+                    onPress={() => setGender(g.key)}
                   >
-                    <Text style={[styles.dayBtnText, daysPerWeek === d && styles.dayBtnTextActive]}>
-                      {d}
-                    </Text>
+                    <Text style={[styles.pillText, gender === g.key && styles.pillTextActive]}>{g.label}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
             </Section>
           )}
 
-          {step === 4 && (
-            <Section title="Tell us a bit about yourself" subtitle="Optional — helps tune your program">
-              <NumField label="Age" value={age} onChange={setAge} suffix="years" />
-              <NumField label="Body weight" value={weightKg} onChange={setWeightKg} suffix="kg" />
+          {step === 2 && (
+            <Section title="Medical conditions" subtitle="Optional — helps Ashwini tailor the plan safely">
+              <TextInput
+                style={styles.textArea}
+                value={conditions}
+                onChangeText={setConditions}
+                placeholder="e.g. Type 2 diabetes, PCOD, hypothyroidism, hypertension..."
+                placeholderTextColor={C.textMuted}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+              <Text style={styles.hint}>Leave blank if none. This is kept confidential.</Text>
             </Section>
           )}
 
-          {step === 5 && (
-            <Section title="Your current best lifts" subtitle="Optional — skip if you don't track 1RMs">
-              <NumField label="Bench press" value={bench} onChange={setBench} suffix="lb" />
-              <NumField label="Squat" value={squat} onChange={setSquat} suffix="lb" />
-              <NumField label="Deadlift" value={deadlift} onChange={setDeadlift} suffix="lb" />
+          {step === 3 && (
+            <Section title="Current medications" subtitle="Optional — affects certain dietary recommendations">
+              <TextInput
+                style={styles.textArea}
+                value={medications}
+                onChangeText={setMedications}
+                placeholder="e.g. Metformin 500mg, Thyroxine 50mcg..."
+                placeholderTextColor={C.textMuted}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+              <Text style={styles.hint}>Leave blank if none. Never changes your prescription.</Text>
             </Section>
           )}
+
+          {step === 4 && (
+            <Section title="How would you like to consult?" subtitle="Ashwini offers both online and in-person sessions">
+              {CONSULT_MODES.map((m) => (
+                <Choice key={m.key} label={m.label} sub={m.sub} selected={consultMode === m.key} onPress={() => setConsultMode(m.key)} />
+              ))}
+            </Section>
+          )}
+
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
         </ScrollView>
 
         <View style={styles.footer}>
@@ -182,15 +172,13 @@ export default function Onboarding() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            onPress={step === totalSteps - 1 ? finish : next}
+            onPress={step === TOTAL_STEPS - 1 ? finish : next}
             disabled={!canProceed() || saving}
             style={[styles.nextBtn, (!canProceed() || saving) && styles.nextBtnDisabled]}
           >
             {saving
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.nextBtnText}>
-                  {step === totalSteps - 1 ? 'Build my program' : 'Continue'}
-                </Text>}
+              : <Text style={styles.nextBtnText}>{step === TOTAL_STEPS - 1 ? 'Complete Setup' : 'Continue'}</Text>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -210,11 +198,7 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
 
 function Choice({ label, sub, selected, onPress }: { label: string; sub: string; selected: boolean; onPress: () => void }) {
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[styles.choice, selected && styles.choiceActive]}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity onPress={onPress} style={[styles.choice, selected && styles.choiceActive]} activeOpacity={0.7}>
       <Text style={[styles.choiceLabel, selected && styles.choiceLabelActive]}>{label}</Text>
       <Text style={[styles.choiceSub, selected && styles.choiceSubActive]}>{sub}</Text>
     </TouchableOpacity>
@@ -224,15 +208,15 @@ function Choice({ label, sub, selected, onPress }: { label: string; sub: string;
 function NumField({ label, value, onChange, suffix }: { label: string; value: string; onChange: (v: string) => void; suffix: string }) {
   return (
     <View style={styles.numField}>
-      <Text style={styles.numLabel}>{label}</Text>
+      <Text style={styles.fieldLabel}>{label}</Text>
       <View style={styles.numRow}>
         <TextInput
           style={styles.numInput}
           value={value}
-          onChangeText={(v) => onChange(v.replace(/[^0-9.]/g, ''))}
-          keyboardType="numeric"
+          onChangeText={(v) => onChange(v.replace(/[^0-9]/g, ''))}
+          keyboardType="number-pad"
           placeholder="—"
-          placeholderTextColor="#52525b"
+          placeholderTextColor={C.textMuted}
         />
         <Text style={styles.numSuffix}>{suffix}</Text>
       </View>
@@ -241,50 +225,57 @@ function NumField({ label, value, onChange, suffix }: { label: string; value: st
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#09090b' },
-  progress: { flexDirection: 'row', justifyContent: 'center', gap: 6, paddingVertical: 16 },
-  progressDot: { width: 28, height: 4, borderRadius: 2, backgroundColor: '#27272a' },
-  progressDotActive: { backgroundColor: '#f97316' },
+  safe: { flex: 1, backgroundColor: C.bg },
+  progress: { flexDirection: 'row', gap: 6, paddingHorizontal: 20, paddingVertical: 16 },
+  progressSeg: { flex: 1, height: 3, borderRadius: 2, backgroundColor: C.border },
+  progressSegActive: { backgroundColor: C.orange },
   scroll: { padding: 24, paddingBottom: 40 },
-  sectionTitle: { fontSize: 24, fontWeight: '800', color: '#f4f4f5' },
-  sectionSubtitle: { fontSize: 13, color: '#71717a', marginTop: 6 },
+  sectionTitle: { fontSize: 22, fontWeight: '800', color: C.text },
+  sectionSubtitle: { fontSize: 13, color: C.textMuted, marginTop: 6 },
   choice: {
-    backgroundColor: '#18181b', borderWidth: 1.5, borderColor: '#27272a',
+    backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.border,
     borderRadius: 14, padding: 16, marginBottom: 10,
   },
-  choiceActive: { borderColor: '#f97316', backgroundColor: '#1c0e07' },
-  choiceLabel: { fontSize: 16, fontWeight: '700', color: '#e4e4e7' },
-  choiceLabelActive: { color: '#fb923c' },
-  choiceSub: { fontSize: 13, color: '#71717a', marginTop: 4 },
-  choiceSubActive: { color: '#fdba74' },
-  dayGrid: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  dayBtn: {
-    backgroundColor: '#18181b', borderWidth: 1.5, borderColor: '#27272a',
-    width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+  choiceActive: { borderColor: C.orange, backgroundColor: '#130C06' },
+  choiceLabel: { fontSize: 15, fontWeight: '700', color: C.text },
+  choiceLabelActive: { color: C.orange },
+  choiceSub: { fontSize: 12, color: C.textMuted, marginTop: 4 },
+  choiceSubActive: { color: '#FFA05C' },
+  fieldLabel: { fontSize: 11, color: C.textMuted, fontWeight: '600', letterSpacing: 1.2, marginBottom: 8 },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 },
+  pill: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
   },
-  dayBtnActive: { borderColor: '#f97316', backgroundColor: '#1c0e07' },
-  dayBtnText: { fontSize: 20, fontWeight: '800', color: '#71717a' },
-  dayBtnTextActive: { color: '#fb923c' },
-  numField: { marginBottom: 14 },
-  numLabel: { fontSize: 11, color: '#71717a', fontWeight: '600', letterSpacing: 1.2, marginBottom: 6 },
+  pillActive: { borderColor: C.orange, backgroundColor: '#130C06' },
+  pillText: { fontSize: 14, color: C.textSec },
+  pillTextActive: { color: C.orange, fontWeight: '700' },
+  numField: { marginBottom: 16 },
   numRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a',
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
     borderRadius: 12, paddingHorizontal: 14,
   },
-  numInput: { flex: 1, color: '#f4f4f5', fontSize: 16, paddingVertical: 14 },
-  numSuffix: { color: '#71717a', fontSize: 13 },
+  numInput: { flex: 1, color: C.text, fontSize: 16, paddingVertical: 14 },
+  numSuffix: { color: C.textMuted, fontSize: 13 },
+  textArea: {
+    backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: 12, padding: 14, color: C.text, fontSize: 14,
+    lineHeight: 22, minHeight: 110,
+  },
+  hint: { fontSize: 11, color: C.textMuted, marginTop: 8 },
+  errorText: { color: '#EF4444', fontSize: 13, marginTop: 12, textAlign: 'center' },
   footer: {
     flexDirection: 'row', gap: 10, padding: 16,
-    borderTopWidth: 1, borderTopColor: '#18181b',
+    borderTopWidth: 1, borderTopColor: C.surface,
   },
   backBtn: {
-    flex: 1, backgroundColor: '#18181b', borderRadius: 12,
+    flex: 1, backgroundColor: C.surface, borderRadius: 12,
     padding: 16, alignItems: 'center',
   },
-  backBtnText: { color: '#a1a1aa', fontWeight: '700', fontSize: 15 },
+  backBtnText: { color: C.textMuted, fontWeight: '700', fontSize: 15 },
   nextBtn: {
-    flex: 2, backgroundColor: '#f97316', borderRadius: 12,
+    flex: 2, backgroundColor: C.orange, borderRadius: 12,
     padding: 16, alignItems: 'center',
   },
   nextBtnDisabled: { opacity: 0.4 },

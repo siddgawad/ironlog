@@ -25,8 +25,10 @@ import replanRouter from './routes/replan.js';
 import progressRouter from './routes/progress.js';
 import subscriptionRouter from './routes/subscription.js';
 import { requireAuth } from './middleware/auth.js';
+import { configureSecurity, apiLimiter, authLimiter, aiLimiter } from './middleware/security.js';
 
 const app = express();
+configureSecurity(app);
 
 app.use(cors({
   origin: process.env.CLIENT_URL
@@ -34,15 +36,15 @@ app.use(cors({
     : ['http://localhost:5173', 'exp://'],
   credentials: true,
 }));
-app.use(express.json());
 
 app.get('/ping', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
-app.use('/api/auth', authRouter);
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter, authRouter);
 app.use('/api/state', stateRouter);
-app.use('/api/setup', setupRouter);
+app.use('/api/setup', aiLimiter, setupRouter);
 app.use('/api/plan', planRouter);
-app.use('/api/chat', chatRouter);
+app.use('/api/chat', aiLimiter, chatRouter);
 app.use('/api/log', logRouter);
 app.use('/api/logs', logsRouter);
 app.use('/api/adaptations', adaptationsRouter);
@@ -50,9 +52,14 @@ app.use('/api/medical-clearance', medicalClearanceRouter);
 app.use('/api/pain-severity', painSeverityRouter);
 app.use('/api/conversations', conversationsRouter);
 app.use('/api/exercises', requireAuth, exerciseRoutes);
-app.use('/api/replan', replanRouter);
+app.use('/api/replan', aiLimiter, replanRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/subscription', subscriptionRouter);
+
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled server error:', err);
+  res.status(500).json({ error: 'INTERNAL_SERVER_ERROR' });
+});
 
 const PORT = process.env.PORT || 3001;
 

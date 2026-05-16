@@ -1,30 +1,48 @@
 {
   "expo": {
-    "name": "ironlog-mobile",
-    "slug": "ironlog-mobile",
+    "name": "IronLog",
+    "slug": "ironlog",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#09090b"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.siddhantgawad.ironlog",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#09090b"
       },
+      "package": "com.siddhantgawad.ironlog",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    }
+    "plugins": [
+      "expo-router",
+      "@react-native-community/datetimepicker"
+    ],
+    "scheme": "ironlog",
+    "extra": {
+      "apiBaseUrl": "https://ironlog-jkuj.onrender.com",
+      "eas": {
+        "projectId": "95e907b0-fa61-409c-b246-ed513f528e4b"
+      }
+    },
+    "owner": "greasymonkeys-organization"
   }
 }

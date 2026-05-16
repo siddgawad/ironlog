@@ -1,63 +1,80 @@
 import { create } from 'zustand';
 import api from '../api';
 
-export type Exercise = {
+// ── Client health profile ─────────────────────────────────────────────────────
+
+export type ClientGoal =
+  | 'diabetes'
+  | 'pcos'
+  | 'weight_loss'
+  | 'weight_gain'
+  | 'elderly_care'
+  | 'cardiac'
+  | 'general_wellness'
+  | 'npd'; // New Product Development / MSME
+
+export type ConsultMode = 'online' | 'in_person' | 'either';
+
+export type ClientProfile = {
   name: string;
-  sets: number;
-  reps: number;
-  loadLb: number;
-  rpeTarget?: number;
-  restSeconds?: number;
+  age?: number;
+  gender?: string;
+  goal: ClientGoal;
+  consultMode: ConsultMode;
+  medicalConditions?: string;
+  medications?: string;
+  onboardingComplete: boolean;
+};
+
+// ── Diet plan day ─────────────────────────────────────────────────────────────
+
+export type MealItem = {
+  time: string;
+  description: string;
   notes?: string;
-  category?: string;
 };
 
-export type PlanDay = {
+export type DietDay = {
   _id: string;
-  dayNumber: number;
-  dayType: string;
-  exercises: Exercise[];
+  date: string;
+  meals: MealItem[];
+  waterTargetMl: number;
+  notes?: string;
   isCompleted: boolean;
-  scheduledDate: string;
 };
 
-export type ProgramState = {
-  currentDayIndex: number;
-  currentMicrocycle: number;
-  startDate: string;
-  flags: {
-    medicalStop: boolean;
-    benchPaused: boolean;
-    activeRPEWarning: boolean;
-    benchFailedThisMicrocycle: boolean;
-    elbowPainFlagged: boolean;
-    shoulderPainFlagged: boolean;
-    squatBlockedUntil?: string;
-    consecutiveGrade1Headaches?: number;
-  };
+// ── Progress log ──────────────────────────────────────────────────────────────
+
+export type ProgressLog = {
+  _id: string;
+  date: string;
+  weightKg?: number;
+  energyLevel?: number; // 1-5
+  adherence?: number;   // 1-5
+  notes?: string;
 };
+
+// ── Store ─────────────────────────────────────────────────────────────────────
 
 type AppStore = {
-  programState: ProgramState | null;
-  todayPlan: PlanDay | null;
+  clientProfile: ClientProfile | null;
+  todayDiet: DietDay | null;
+  recentProgress: ProgressLog[];
   initialized: boolean;
-  fetchProgramState: () => Promise<void>;
+  fetchClientData: () => Promise<void>;
 };
 
 export const useAppStore = create<AppStore>((set) => ({
-  programState: null,
-  todayPlan: null,
+  clientProfile: null,
+  todayDiet: null,
+  recentProgress: [],
   initialized: false,
 
-  fetchProgramState: async () => {
+  fetchClientData: async () => {
     try {
-      const [stateRes, planRes] = await Promise.all([
-        api.get('/state'),
-        api.get('/plan/today'),
-      ]);
+      const res = await api.get('/auth/me');
       set({
-        programState: stateRes.data,
-        todayPlan: planRes.data,
+        clientProfile: res.data ?? null,
         initialized: true,
       });
     } catch {

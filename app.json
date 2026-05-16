@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "IronLog",
-    "slug": "ironlog",
+    "name": "Ashwini Gawad — Nutrition",
+    "slug": "ashwini-nutrition",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,11 +10,11 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#09090b"
+      "backgroundColor": "#07080A"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.siddhantgawad.ironlog",
+      "bundleIdentifier": "com.ashwinigawad.nutrition",
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
@@ -26,17 +26,16 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#09090b"
+        "backgroundColor": "#FF6A1A"
       },
-      "package": "com.siddhantgawad.ironlog",
+      "package": "com.ashwinigawad.nutrition",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
-      "expo-router",
-      "@react-native-community/datetimepicker"
+      "expo-router"
     ],
-    "scheme": "ironlog",
+    "scheme": "ashwini",
     "extra": {
       "apiBaseUrl": "https://ironlog-jkuj.onrender.com",
       "eas": {
